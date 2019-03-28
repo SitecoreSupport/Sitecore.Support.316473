@@ -175,18 +175,23 @@ namespace Sitecore.Support.ContentTesting.Data
     public SitecoreContentTestStore() : base()
     {
       var databases = Factory.GetDatabases();
-      foreach (var database in databases)
+      lock (cachesSyncRoot)
       {
-        if (database.Name != "core" && database.Name != "filesystem")
+        foreach (var database in databases)
         {
-          IsTestRunningCache cache = new IsTestRunningCache("[IsTestRunningCache]",
-            StringUtil.ParseSizeString(Settings.GetSetting("ContentTesting.TestConfigurationCacheSize", "50MB")), database);
-          caches.Add(database.Name, cache);
+          if (database.Name != "core" && database.Name != "filesystem" && !caches.ContainsKey(database.Name))
+          {
+            IsTestRunningCache cache = new IsTestRunningCache("[IsTestRunningCache]",
+              StringUtil.ParseSizeString(Settings.GetSetting("ContentTesting.TestConfigurationCacheSize", "50MB")),
+              database);
+            caches.Add(database.Name, cache);
+          }
         }
       }
     }
 
     private static Dictionary<string, IsTestRunningCache> caches = new Dictionary<string, IsTestRunningCache>();
+    private static object cachesSyncRoot = new object();
     
     public override bool IsTestRunning(Item contentItem)
     {
